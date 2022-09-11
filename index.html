@@ -15,7 +15,7 @@
 }
 
 body {
-    min-height: 100%;
+    min-height: 100vh;
     background-color: #000;
     display: flex;
     flex-flow: column;
@@ -50,11 +50,21 @@ footer {
     color: #000;
 }
 
+#canvas-container {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /*border: 1px solid white;*/
+}
+
 #surface {
     /*border: 1px solid #fff;
     border-radius: 8px;*/
     image-rendering: pixelated;
     image-rendering: crisp-edges;
+    width: 320px;
+    height: 320px;
 }
 
 button {
@@ -92,11 +102,23 @@ button {
     border: none;
 }
 
+@media (min-width: 640px) {
+    #surface {
+        width: 480px;
+        height: 480px;
+    }
+}
+
 @media (min-width: 768px) {
     body {
         width: 768px;
         max-width: 768px;
         margin: auto;
+    }
+
+    #surface {
+        width: 640px;
+        height: 640px;
     }
 }
 </style>
@@ -104,7 +126,9 @@ button {
 <header>
   <b>&#9632; QLY-CONSOLE</b>
 </header>
-<canvas id="surface"></canvas>
+<div id="canvas-container">
+    <canvas id="surface"></canvas>
+</div>
 <div id="keyboard">
   <div class="row">
     <button>q</button>
@@ -157,7 +181,8 @@ button {
 let surface = document.querySelector("#surface");
 surface.width = 320;
 surface.height = 320;
-let ctx = surface.getContext("2d");
+let ctx = surface.getContext("2d", {alpha: false});
+ctx.imageSmoothingEnabled = false;
 let typer = document.querySelector("#in");
 surface.addEventListener("keydown", down);
 surface.addEventListener("keyup", up);
@@ -198,16 +223,23 @@ function spKey(evt) {
         let command = inputBuffer.join("");
         inputBuffer = [];
         
-        if (command == "run") {
+        if (command === "RUN") {
             setupBoard();
             if (!running) {
                 running = true;
             }
+        } else if (command === "HELP") {
+            alert(
+                "HELP:\n\n" +
+                "Type RUN to play John Conway's Game of Life.\n" +
+                "During play, press ENTER to reset the game.\n" +
+                "Press ESC or Backspace to exit game."
+            );
         }
-    } else if (evt.key === "Backspace") {
+    } else if (evt.key === "Backspace" || evt.key === "Escape") {
         if (running) {
             running = false;
-        } else {
+        } else if (!running && evt.key == "Backspace") {
             inputBuffer.splice(-1, 1);
         }
     }
