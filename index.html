@@ -1,0 +1,355 @@
+<meta name="viewport" content="initial-scale=1.0, width=device-width">
+
+<title>QLY-CONSOLE</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    font-family: sans-serif;
+    color: #fff;
+}
+
+@font-face {
+    font-family: brixel;
+    src: url("assets/brixel-8x8-mono.ttf");
+}
+
+body {
+    min-height: 100%;
+    background-color: #000;
+    display: flex;
+    flex-flow: column;
+    justify-content: space-between;
+    align-items: stretch;
+    margin: 0px;
+    padding: 8px;
+    /*overflow: hidden;*/
+}
+
+header {
+    border-bottom: 1px solid #fff;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+}
+
+footer {
+    border-top: 1px solid #fff;
+    padding-top: 8px;
+    margin-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+#in {
+    position: absolute;
+    top: -100vh;
+    color: #000;
+}
+
+#surface {
+    /*border: 1px solid #fff;
+    border-radius: 8px;*/
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+button {
+    border: 1px solid #fff;
+    border-radius: 8px;
+    color: #000;
+    background-color: #fff;
+    font-weight: bold;
+}
+
+#keyboard {
+    display: none;
+    margin-top: 8px;
+    bottom: 0px;
+    flex-flow: column;
+    justify-content: space-between;
+    align-items: stretch;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.row {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+}
+
+.row > button {
+    margin: 0px;
+    padding: 16px 4px;
+    flex-grow: 1;
+    font-family: monospace;
+    border-radius: 0px;
+    background-color: #0000;
+    border: none;
+}
+
+@media (min-width: 768px) {
+    body {
+        width: 768px;
+        max-width: 768px;
+        margin: auto;
+    }
+}
+</style>
+
+<header>
+  <b>&#9632; QLY-CONSOLE</b>
+</header>
+<canvas id="surface"></canvas>
+<div id="keyboard">
+  <div class="row">
+    <button>q</button>
+    <button>w</button>
+    <button>e</button>
+    <button>r</button>
+    <button>t</button>
+    <button>y</button>
+    <button>u</button>
+    <button>i</button>
+    <button>o</button>
+    <button>p</button>
+  </div>
+  <div class="row">
+    <button>a</button>
+    <button>s</button>
+    <button>d</button>
+    <button>f</button>
+    <button>g</button>
+    <button>h</button>
+    <button>j</button>
+    <button>k</button>
+    <button>l</button>
+  </div>
+  <div class="row">
+    <button>Shft</button>
+    <button>z</button>
+    <button>x</button>
+    <button>c</button>
+    <button>v</button>
+    <button>b</button>
+    <button>n</button>
+    <button>m</button>
+    <button>Back</button>
+  </div>
+  <div class="row">
+    <button>Symbol</button>
+    <button style="flex: 100%;">Spacebar</button>
+    <button>Enter</button>
+  </div>
+</div>
+<footer>
+  <button onclick="getFocus();">Toggle Keyboard</button>
+</footer>
+<!--form id="input-handler"-->
+  <input type="text" id="in" autofocus="" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="off">
+<!--/form-->
+
+<script>
+let surface = document.querySelector("#surface");
+surface.width = 320;
+surface.height = 320;
+let ctx = surface.getContext("2d");
+let typer = document.querySelector("#in");
+surface.addEventListener("keydown", down);
+surface.addEventListener("keyup", up);
+typer.addEventListener("keydown", spKey);
+typer.addEventListener("input", input);
+// document.querySelector("#input-handler").addEventListener("submit", enter);
+
+ctx.fillStyle = "#000";
+ctx.fillRect(0, 0, 320, 320);
+
+// let kbOn = false;
+
+function getFocus() {
+    typer.focus();
+    /*kbOn = !kbOn;
+    
+    document.querySelector("#keyboard").style.display = kbOn ? "none" : "flex";*/
+}
+
+let keys = {};
+
+function down(evt) {
+    keys[evt.code] = true;
+    input();
+}
+
+let running = false;
+
+function spKey(evt) {
+    // evt.preventDefault();
+    
+    if (evt.key === "Enter") {
+        if (running) {
+            setupBoard();
+            return;
+        }
+        
+        let command = inputBuffer.join("");
+        inputBuffer = [];
+        
+        if (command == "run") {
+            setupBoard();
+            if (!running) {
+                running = true;
+            }
+        }
+    } else if (evt.key === "Backspace") {
+        if (running) {
+            running = false;
+        } else {
+            inputBuffer.splice(-1, 1);
+        }
+    }
+}
+
+function up(evt) {
+    keys[evt.code] = false;
+    console.log(keys);
+    console.log(evt);
+}
+
+let inputBuffer = [];
+
+function input(evt) {
+    inputBuffer.push(typer.value);
+    clear();
+}
+
+function clear() {
+    typer.value = "";
+}
+
+// game of life
+
+let board = new Array(160 * 160).fill(0);
+setupBoard();
+let initTime = Date.now() / 1000;
+let curTime = 0;
+
+window.requestAnimationFrame(loop);
+
+let blockOn = true;
+
+function loop() {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, 320, 320);
+    
+    curTime = Date.now() / 1000;
+    
+    if (running) {
+        if (curTime - initTime >= 1 / 60) {
+            initTime = curTime;
+        
+            updateCells();
+        }
+    
+        board.forEach((cell, id) => {
+            ctx.fillStyle = "#fff";
+            
+            if (cell === 1) {
+                let x = id % 160;
+                let y = Math.floor(id / 160);
+                ctx.fillRect(x * 2, y * 2, 2, 2);
+            }
+        });
+    } else {
+        ctx.font = "8px brixel";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "#fff";
+        ctx.fillText("QLY-CONSOLE", 8, 0);
+        ctx.fillRect(0, 0, 8, 8);
+        ctx.fillText("V0.1a *debug", 0, 16);
+        ctx.fillText("(C) 2022, QLYCO/dfx", 0, 24);
+        ctx.fillText("Type HELP for help", 0, 40);
+        ctx.fillText(">", 0, 56);
+        
+        let command = inputBuffer.join("");
+        let line = 0;
+        
+        for (i = 0; i < command.length; i += 38) {
+            ctx.fillText(command.substring(i, i + 38), 16, 56 + line * 8);
+            line++;
+        }
+        
+        if (curTime - initTime >= 1) {
+            initTime = curTime;
+            blockOn = !blockOn;
+        }
+        
+        let curPos = {x: 16 + command.length % 38 * 8, y: 56 + Math.floor(command.length / 38) * 8};
+        
+        ctx.fillStyle = blockOn ? "#88f" : "#000";
+        ctx.fillRect(curPos.x, curPos.y, 8, 8);
+    }
+    
+    window.requestAnimationFrame(loop);
+}
+
+function setupBoard() {
+    board = board.map(() => {
+        return Math.random() >= 0.5 ? 1 : 0;
+    });
+}
+
+function updateCells() {
+    let newState = [...board];
+    
+    for (x = 0; x < 160; x++) {
+        for (y = 0; y < 160; y++) {
+            let i = id(x, y);
+            let tot = checkNeighbour(x, y);
+            
+            if (board[i] === 1) {
+                if (tot < 2 || tot > 3) {
+                    newState[i] = 0;
+                }
+            } else if (board[i] === 0) {
+                if (tot === 3) {
+                    newState[i] = 1;
+                }
+            }
+        }
+    }
+    
+    board = [...newState];
+}
+
+function id(x, y) {
+    let curX = x;
+    let curY = y;
+    
+    if (x < 0) curX = 160 - 1;
+    if (x >= 160) curX = 0;
+    if (y < 0) curY = 160 - 1;
+    if (y >= 160) curY = 0;
+    
+    let val = curX + curY * 160;
+    
+    return val;
+}
+
+function checkNeighbour(x, y) {
+    live = 0;
+    live += board[id(x - 1, y - 1)];
+    live += board[id(x    , y - 1)];
+    live += board[id(x + 1, y - 1)];
+    live += board[id(x - 1, y    )];
+    live += board[id(x + 1, y    )];
+    live += board[id(x - 1, y + 1)];
+    live += board[id(x    , y + 1)];
+    live += board[id(x + 1, y + 1)];
+    
+    return live;
+}
+</script>
